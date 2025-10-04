@@ -59,8 +59,8 @@ async function scrollDown() {
         :class="response.isUser ? 'justify-end' : 'justify-start'"
       >
         <div
-          class="inline-block p-3 rounded-sm text-xl break-words max-w-150 text-black"
-          :class="response.isUser ? 'bg-violet-300' : 'bg-violet-100'"
+          class="inline-block p-3 rounded-sm text-xl break-words max-w-200 text-black"
+          :class="response.isUser ? 'bg-violet-300' : 'bg-violet-50'"
           v-html="response.text"
         ></div>
       </div>
@@ -82,4 +82,30 @@ async function scrollDown() {
   </div>
 </template>
 
-<style scoped></style>
+<style>
+pre {
+  background-color: var(--color-slate-500);
+  color: white;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+ul {
+  margin-bottom: 20px;
+  margin-left: 20px;
+  list-style: disc;
+}
+ol {
+  margin-bottom: 20px;
+  margin-left: 30px;
+  list-style: decimal-leading;
+}
+ol > li::marker {
+  font-weight: bold;
+}
+p {
+  margin-bottom: 10px;
+}
+li {
+  padding-left: 0px;
+}
+</style>
