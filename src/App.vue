@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { Ollama } from 'ollama'
+import { Ollama } from 'ollama/browser'
+import { marked } from 'marked'
 
 const AImodel = ref('gemma3:4b')
 const ollama = new Ollama({ host: 'http://192.168.68.105:11434' }) //http://localhost:11434
@@ -31,8 +32,12 @@ async function newResponse() {
     const word = part.message.content as string
 
     history.value[lastIndex]!.text += word
-    scrollDown()
+
+    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 5) scrollDown()
   }
+
+  history.value[lastIndex]!.text = marked.parse(history.value[lastIndex]!.text) as string
+  if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 5) scrollDown()
 }
 
 async function scrollDown() {
@@ -54,8 +59,8 @@ async function scrollDown() {
         :class="response.isUser ? 'justify-end' : 'justify-start'"
       >
         <div
-          class="inline-block p-3 rounded-sm text-xl break-words max-w-150"
-          :class="response.isUser ? 'bg-violet-300 text-black' : 'bg-violet-100 text-black'"
+          class="inline-block p-3 rounded-sm text-xl break-words max-w-150 text-black"
+          :class="response.isUser ? 'bg-violet-300' : 'bg-violet-100'"
           v-html="response.text"
         ></div>
       </div>
