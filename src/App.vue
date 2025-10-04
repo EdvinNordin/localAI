@@ -1,32 +1,38 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { Ollama } from 'ollama'
-import { marked } from 'marked'
 
+const AImodel = ref('gemma3:4b')
 const ollama = new Ollama({ host: 'http://192.168.68.105:11434' }) //http://localhost:11434
 const input = ref('')
 
 interface Message {
-  text: string | Promise<string>
+  text: string
   isUser: boolean
 }
-const responseHistory = ref<Message[]>([])
+const history = ref<Message[]>([])
 
 async function newResponse() {
   const prompt = input.value
   input.value = ''
-  responseHistory.value.push({ text: prompt, isUser: true })
+  history.value.push({ text: prompt, isUser: true })
   scrollDown()
 
-  const AIresponse = (
-    await ollama.chat({
-      model: 'gemma3:4b',
-      messages: [{ role: 'user', content: prompt }],
-    })
-  ).message.content
+  const response = await ollama.chat({
+    model: AImodel.value,
+    messages: [{ role: 'user', content: prompt }],
+    stream: true,
+  })
 
-  responseHistory.value.push({ text: marked.parse(AIresponse), isUser: false })
-  scrollDown()
+  history.value.push({ text: '', isUser: false })
+  const lastIndex = history.value.length - 1
+
+  for await (const part of response) {
+    const word = part.message.content as string
+
+    history.value[lastIndex]!.text += word
+    scrollDown()
+  }
 }
 
 async function scrollDown() {
@@ -42,7 +48,7 @@ async function scrollDown() {
   <div class="text-white mx-auto max-w-250">
     <div class="mx-2 mb-15">
       <div
-        v-for="(response, i) in responseHistory"
+        v-for="(response, i) in history"
         :key="i"
         class="flex m-2"
         :class="response.isUser ? 'justify-end' : 'justify-start'"
@@ -54,15 +60,19 @@ async function scrollDown() {
         ></div>
       </div>
     </div>
+
     <div
-      class="fixed bottom-0 max-w-200 w-full left-0 right-0 mx-auto mb-1.5 rounded-md bg-slate-600"
+      class="flex flex-row fixed bottom-0 border-2 max-w-200 w-full left-0 right-0 mx-auto mb-1.5 rounded-md bg-slate-600"
     >
       <textarea
         v-model="input"
         @keyup.shift.enter="newResponse"
         placeholder="Press shift + enter to send your message"
-        class="rounded-sm p-2 border-2 w-full focus:outline-hidden h-11"
-      ></textarea>
+        class="rounded-sm p-2 w-4/5 focus:outline-hidden h-11"
+      >
+      </textarea>
+
+      <input class="w-1/5 bg-slate-500 p-2 text-center" v-model="AImodel" />
     </div>
   </div>
 </template>
