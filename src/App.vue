@@ -4,7 +4,7 @@ import { Ollama } from 'ollama/browser'
 import { marked } from 'marked'
 
 const AImodel = ref('gemma3:4b')
-const ollama = new Ollama({ host: 'http://192.168.68.105:11434' }) //http://localhost:11434
+const ollama = new Ollama({ host: 'http://192.168.68.105:5173/ollama' }) //http://localhost:11434
 const input = ref('')
 
 interface Message {
