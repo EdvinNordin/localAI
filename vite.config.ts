@@ -14,8 +14,8 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ollama/, ''),
         // **The Key Change:** Remove the Origin header from the request
-        configure: (proxy, options) => {
-          proxy.on('proxyReq', (proxyReq, req, res) => {
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
             // Remove the Origin header sent by the browser
             // This makes the request look like a simple server-to-server request
             proxyReq.removeHeader('Origin')
@@ -28,23 +28,3 @@ export default defineConfig({
     },
   },
 })
-
-/*
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-
-export default defineConfig({
-  plugins: [vue()],
-  server: {
-    host: true, // allow LAN access
-    port: 5173,
-    proxy: {
-      '/ollama': {
-        target: 'http://localhost:11434',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/ollama/, ''), // removes /ollama prefix
-      },
-    },
-  },
-})
-*/

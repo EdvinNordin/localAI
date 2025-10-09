@@ -71,8 +71,9 @@ async function scrollDown() {
     >
       <textarea
         v-model="input"
-        @keyup.shift.enter="newResponse"
-        placeholder="Press shift + enter to send your message"
+        @keyup.enter.exact="newResponse"
+        placeholder="Ask your local AI anyting"
+        autofocus
         class="rounded-sm p-2 w-4/5 focus:outline-hidden h-11"
       >
       </textarea>
