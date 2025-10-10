@@ -41,44 +41,62 @@ async function newResponse() {
 }
 
 async function scrollDown() {
+  const container = document.getElementById('container')
   await nextTick()
-  window.scrollTo({
-    top: document.documentElement.scrollHeight,
+  container!.scrollTo({
+    top: container!.scrollHeight,
     behavior: 'smooth',
   })
 }
 </script>
 
 <template>
-  <div class="text-white mx-auto max-w-250">
-    <div class="mx-2 mb-15">
-      <div
-        v-for="(response, i) in history"
-        :key="i"
-        class="flex m-2"
-        :class="response.isUser ? 'justify-end' : 'justify-start'"
-      >
-        <div
-          class="inline-block p-3 rounded-sm text-xl break-words max-w-200 text-black"
-          :class="response.isUser ? 'bg-violet-300' : 'bg-violet-50'"
-          v-html="response.text"
-        ></div>
-      </div>
+  <div class="bg-gradient-to-b from-slate-950 to-slate-500 w-[100vw] h-[100vh]">
+    <div v-if="history.length === 0" class="text-center flex-grow flex flex-col justify-center">
+      <h1 class="text-8xl bg-gradient-to-b from-blue-600 to-sky-400 bg-clip-text text-transparent">
+        localAI
+      </h1>
     </div>
-
     <div
-      class="flex flex-row fixed bottom-0 border-2 max-w-200 w-full left-0 right-0 mx-auto mb-1.5 rounded-md bg-slate-600"
+      id="container"
+      class="text-white mx-auto max-w-7xl flex flex-col items-stretch overflow-y-auto h-screen"
     >
-      <textarea
-        v-model="input"
-        @keyup.enter.exact="newResponse"
-        placeholder="Ask your local AI anyting"
-        autofocus
-        class="rounded-sm p-2 w-4/5 focus:outline-hidden h-11"
-      >
-      </textarea>
+      <div class="mx-2 mb-15">
+        <div
+          v-for="(response, i) in history"
+          :key="i"
+          class="flex m-2"
+          :class="response.isUser ? 'justify-end' : 'justify-start'"
+        >
+          <div
+            class="inline-block bg-gradient-to-b rounded-md text-xl break-words max-w-200 text-white"
+            :class="response.isUser ? 'from-blue-600 to-sky-400' : 'from-violet-600 to-purple-400'"
+          >
+            <div
+              v-html="response.text"
+              class="p-3 m-0.5 rounded-md bg-slate-700 backdrop-blur-md"
+            ></div>
+          </div>
+        </div>
+      </div>
 
-      <input class="w-1/5 bg-slate-500 p-2 text-center" v-model="AImodel" />
+      <div
+        class="flex flex-row fixed bottom-0 max-w-200 w-full left-0 right-0 mx-auto mb-1.5 rounded-md bg-gradient-to-b from-blue-600 to-sky-400"
+      >
+        <textarea
+          v-model="input"
+          @keyup.enter.exact="newResponse"
+          placeholder="Ask your local AI anyting"
+          autofocus
+          class="bg-slate-600 rounded-l-md p-2 w-4/5 focus:outline-hidden h-10 m-0.5 mr-0"
+        >
+        </textarea>
+
+        <input
+          class="w-1/5 bg-slate-500 rounded-r-md p-2 text-center m-0.5 ml-0"
+          v-model="AImodel"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -100,7 +118,8 @@ ol {
   margin-left: 30px;
   list-style: decimal-leading;
 }
-ol > li::marker {
+ol,
+li::marker {
   font-weight: bold;
 }
 p {
