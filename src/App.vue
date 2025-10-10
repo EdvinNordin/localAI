@@ -5,6 +5,8 @@ import { marked } from 'marked'
 
 const AImodel = ref('gemma3:4b')
 const ollama = new Ollama({ host: 'http://192.168.68.105:5173/ollama' }) //http://localhost:11434
+const availableModels = ollama.list()
+console.log(availableModels)
 const input = ref('')
 
 interface Message {
@@ -12,16 +14,20 @@ interface Message {
   isUser: boolean
 }
 const history = ref<Message[]>([])
+let context = ''
+
+const container = ref<HTMLElement | null>(null)
 
 async function newResponse() {
   const prompt = input.value
+  context = context.concat('The user said: ', input.value)
   input.value = ''
   history.value.push({ text: prompt, isUser: true })
   scrollDown()
 
   const response = await ollama.chat({
     model: AImodel.value,
-    messages: [{ role: 'user', content: prompt }],
+    messages: [{ role: 'user', content: context }],
     stream: true,
   })
 
@@ -33,32 +39,38 @@ async function newResponse() {
 
     history.value[lastIndex]!.text += word
 
-    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 5) scrollDown()
+    if (container.value && window.innerHeight + window.scrollY >= container.value.scrollHeight - 5)
+      scrollDown()
   }
 
+  context = context.concat('The llm model then said: ', history.value[lastIndex]!.text)
+
   history.value[lastIndex]!.text = marked.parse(history.value[lastIndex]!.text) as string
-  if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 5) scrollDown()
+  if (container.value && window.innerHeight + window.scrollY >= container.value.scrollHeight - 5)
+    scrollDown()
 }
 
 async function scrollDown() {
-  const container = document.getElementById('container')
+  console.log('scolling down')
   await nextTick()
-  container!.scrollTo({
-    top: container!.scrollHeight,
-    behavior: 'smooth',
-  })
+  if (container.value) {
+    container.value.scrollTo({
+      top: container.value.scrollHeight,
+      behavior: 'smooth',
+    })
+  }
 }
 </script>
 
 <template>
   <div class="bg-gradient-to-b from-slate-950 to-slate-500 w-[100vw] h-[100vh]">
-    <div v-if="history.length === 0" class="text-center flex-grow flex flex-col justify-center">
+    <div v-if="history.length === 0" class="text-center flex flex-col justify-center h-full">
       <h1 class="text-8xl bg-gradient-to-b from-blue-600 to-sky-400 bg-clip-text text-transparent">
         localAI
       </h1>
     </div>
     <div
-      id="container"
+      ref="container"
       class="text-white mx-auto max-w-7xl flex flex-col items-stretch overflow-y-auto h-screen"
     >
       <div class="mx-2 mb-15">
@@ -92,10 +104,10 @@ async function scrollDown() {
         >
         </textarea>
 
-        <input
-          class="w-1/5 bg-slate-500 rounded-r-md p-2 text-center m-0.5 ml-0"
-          v-model="AImodel"
-        />
+        <input class="w-1/5 bg-slate-500 rounded-r-md p-2 text-center m-0.5 ml-0" />
+        <select v-for="(model, i) in availableModels" :key="i" :ref="AImodel">
+          <option>{{ model }}</option>
+        </select>
       </div>
     </div>
   </div>
