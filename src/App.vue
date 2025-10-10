@@ -3,10 +3,14 @@ import { ref, nextTick } from 'vue'
 import { Ollama } from 'ollama/browser'
 import { marked } from 'marked'
 
-const AImodel = ref('gemma3:4b')
+const AImodel = ref('')
 const ollama = new Ollama({ host: 'http://192.168.68.105:5173/ollama' }) //http://localhost:11434
-const availableModels = ollama.list()
-console.log(availableModels)
+
+const availableModels = ref<string[]>([])
+ollama.list().then((result) => {
+  // result.models should be an array of objects with a 'name' property
+  availableModels.value = result.models.map((m: { name: string }) => m.name)
+})
 const input = ref('')
 
 interface Message {
@@ -51,7 +55,6 @@ async function newResponse() {
 }
 
 async function scrollDown() {
-  console.log('scolling down')
   await nextTick()
   if (container.value) {
     container.value.scrollTo({
@@ -100,13 +103,12 @@ async function scrollDown() {
           @keyup.enter.exact="newResponse"
           placeholder="Ask your local AI anyting"
           autofocus
-          class="bg-slate-600 rounded-l-md p-2 w-4/5 focus:outline-hidden h-10 m-0.5 mr-0"
+          class="bg-slate-600 rounded-l-md p-2 w-full focus:outline-hidden h-10 m-0.5 mr-0"
         >
         </textarea>
 
-        <input class="w-1/5 bg-slate-500 rounded-r-md p-2 text-center m-0.5 ml-0" />
-        <select v-for="(model, i) in availableModels" :key="i" :ref="AImodel">
-          <option>{{ model }}</option>
+        <select v-model="AImodel" class="w-/5 bg-slate-800 rounded-r-md p-2 text-center m-0.5 ml-0" >
+          <option v-for="(model, i) in availableModels" :key="i">{{ model }}</option>
         </select>
       </div>
     </div>
