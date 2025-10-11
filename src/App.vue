@@ -6,7 +6,7 @@ import { marked } from 'marked'
 const url = window.location.href
 let host = ''
 if (url.startsWith('http://localhost')) host = 'http://192.168.68.105:5173/ollama'
-else host = url
+else host = url + 'ollama'
 
 const ollama = new Ollama({ host: host }) //url + 'ollama'
 
@@ -28,12 +28,6 @@ async function newResponse() {
   history.value.push({ role: 'user', content: prompt })
   scrollDown()
 
-  const response = await ollama.chat({
-    model: AImodel.value,
-    messages: history.value,
-    stream: true,
-  })
-
   const webSearch = await ollama.generate({
     model: AImodel.value,
     prompt: `
@@ -45,20 +39,26 @@ Message: "${prompt}"
 
   console.log(webSearch)
 
-  const webResults = await fetch('/websearch', {
+  const webResults = await fetch('/langsearch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: webSearch.response }),
   }).then((r) => r.json())
 
-  console.log(webResults)
+  const bestWebResult = webResults.data.webPages.value[1].summary
 
-  /*   const webResults = await ollama.webSearch({
-    query: webSearch.response,
+  /*   const queryEmbedding = await ollama.embed({
+  model: 'llama2',
+  text: bestWebResult
+}) */
+  history.value.push({ role: 'assistant', content: bestWebResult })
+
+  const response = await ollama.chat({
+    model: AImodel.value,
+    messages: history.value,
+    stream: true,
   })
-  console.log(webResults) */
 
-  console.log(webSearch)
   history.value.push({ role: 'system', content: '' })
   const lastIndex = history.value.length - 1
 
@@ -100,18 +100,14 @@ async function scrollDown() {
       class="text-white mx-auto max-w-7xl flex flex-col items-stretch overflow-y-auto h-screen"
     >
       <div class="mx-2 mb-15">
-        <div
-          v-for="(response, i) in history"
-          :key="i"
-          class="flex m-2"
-          :class="response.role === 'user' ? 'justify-end' : 'justify-start'"
-        >
+        <div v-for="(response, i) in history" :key="i" class="flex m-2">
           <div
+            v-if="response.role !== 'assistant'"
             class="inline-block bg-gradient-to-b rounded-md text-xl break-words max-w-200 text-white"
             :class="
               response.role === 'user'
-                ? 'from-blue-600 to-sky-400'
-                : 'from-violet-600 to-purple-400'
+                ? 'from-blue-600 to-sky-400 justify-end'
+                : 'from-violet-600 to-purple-400 justify-start'
             "
           >
             <div

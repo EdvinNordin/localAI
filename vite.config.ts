@@ -25,10 +25,9 @@ export default defineConfig({
           })
         },
       },
-      '/websearch': {
-        target: 'https://ollama.com',
+      '/langsearch': {
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/websearch/, '/api/web_search'),
       },
     },
   },
