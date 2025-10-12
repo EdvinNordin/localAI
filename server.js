@@ -21,7 +21,7 @@ app.post('/langsearch', async (req, res) => {
       },
       body: JSON.stringify({
         query: query,
-        count: 1, // optional, number of results you want
+        count: 5, // optional, number of results you want
       }),
     })
 

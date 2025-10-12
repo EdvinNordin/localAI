@@ -2,78 +2,171 @@
 import { ref, nextTick } from 'vue'
 import { Ollama } from 'ollama/browser'
 import { marked } from 'marked'
+import type { EmbedResponse } from 'ollama'
 
+//URL
 const url = window.location.href
 let host = ''
 if (url.startsWith('http://localhost')) host = 'http://192.168.68.105:5173/ollama'
 else host = url + 'ollama'
 
+//OLLAMA SETTINGS
 const ollama = new Ollama({ host: host }) //url + 'ollama'
-
 const AImodel = ref()
 const availableModels = ref<string[]>([])
 ollama.list().then((result) => {
   availableModels.value = result.models.map((m: { name: string }) => m.name)
   AImodel.value = availableModels.value[0]
 })
+
+//REFs
 const input = ref('')
-
-const history = ref<{ role: string; content: string }[]>([])
-
+const fullAIcontext = <{ role: string; content: string }[]>[]
+const shownConversation = ref<{ role: string; content: string }[]>([])
 const container = ref<HTMLElement | null>(null)
-async function newResponse() {
-  const prompt = input.value
+const RAG = ref(false)
+fullAIcontext.push({
+  role: 'system',
+  content:
+    'You are a helpful AI assistant. Use the provided context provided from online when relevant.',
+})
+let isRunning = false
 
+//LLM RESPONSE GENERATION
+async function newResponse() {
+  isRunning = true
+  const prompt = input.value
   input.value = ''
-  history.value.push({ role: 'user', content: prompt })
+
+  shownConversation.value.push({ role: 'user', content: prompt })
+
+  let context = ''
+  if (RAG.value) {
+    const topTexts = await webSearch(prompt)
+    context = '\n\n Context: \n' + topTexts
+  }
+
+  fullAIcontext.push({ role: 'user', content: prompt + context })
+
   scrollDown()
 
+  const response = await ollama.chat({
+    model: AImodel.value,
+    messages: fullAIcontext,
+    stream: true,
+  })
+
+  //create a new history element
+  shownConversation.value.push({ role: 'assistant', content: '' })
+  const lastIndex = shownConversation.value.length - 1
+
+  //stream the assitants message into the new history element
+  for await (const part of response) {
+    const word = part.message.content as string
+
+    shownConversation.value[lastIndex]!.content += word
+
+    if (container.value && window.innerHeight + window.scrollY >= container.value.scrollHeight - 5)
+      scrollDown()
+  }
+
+  fullAIcontext.push({ role: 'assistant', content: shownConversation.value[lastIndex]!.content })
+  //From text to html to show on screen
+  shownConversation.value[lastIndex]!.content = marked.parse(
+    shownConversation.value[lastIndex]!.content,
+  ) as string
+  if (container.value && window.innerHeight + window.scrollY >= container.value.scrollHeight - 5)
+    scrollDown()
+
+  isRunning = false
+}
+
+// WEBSEARCH FUNCTION
+async function webSearch(prompt: string) {
+  //First embed the prompt from the user
+  const promptEmbedding: EmbedResponse = await ollama.embed({
+    model: AImodel.value,
+    input: prompt,
+  })
+
+  //Create a google query
   const webSearch = await ollama.generate({
     model: AImodel.value,
     prompt: `
-Pretend you're an experienced Google user and convert the following message into a concise Google search query.
-Only return the search string, no explanations or extra text.
-Message: "${prompt}"
-`,
+            Pretend you're an experienced Google user and convert the following message into a concise Google search query.
+            Only return the search string, no explanations or extra text.
+            Message: "${prompt}"
+            `,
   })
 
-  console.log(webSearch)
-
+  //Pull the results from the web
   const webResults = await fetch('/langsearch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: webSearch.response }),
   }).then((r) => r.json())
 
-  const bestWebResult = webResults.data.webPages.value[1].summary
-
-  /*   const queryEmbedding = await ollama.embed({
-  model: 'llama2',
-  text: bestWebResult
-}) */
-  history.value.push({ role: 'assistant', content: bestWebResult })
-
-  const response = await ollama.chat({
-    model: AImodel.value,
-    messages: history.value,
-    stream: true,
+  //Create an array with page snippet or name from web results
+  const bestWebResults = webResults.data.webPages.value.map((page: any) => {
+    return {
+      name: page.name,
+      url: page.url,
+      summary: page.summary,
+    }
   })
 
-  history.value.push({ role: 'system', content: '' })
-  const lastIndex = history.value.length - 1
+  const json = JSON.stringify(bestWebResults.map((r) => r.summary))
 
-  for await (const part of response) {
-    const word = part.message.content as string
+  const summarizedResults = await ollama.generate({
+    model: AImodel.value,
+    prompt: `
+            You are an assistant that summarizes web search results for use in semantic embedding and similarity comparison.
 
-    history.value[lastIndex]!.content += word
+            Summarize each item in the given JSON array into one concise, information-rich sentence (no more than 30 words per item).
+            Return ONLY a valid JSON array of summaries, keeping the same order and length as the input.
+            Do not include explanations, extra text, or code fences.
 
-    if (container.value && window.innerHeight + window.scrollY >= container.value.scrollHeight - 5)
-      scrollDown()
-  }
+            Input array:
+            ${json}`,
+  })
+  /*
+  console.log(summarizedResults)
+  const summaries = JSON.parse(summarizedResults.response) */
+  //Embed the snippets or names of the webpages
+  const webResultEmbedding: EmbedResponse = await ollama.embed({
+    model: AImodel.value,
+    input: summarizedResults.response,
+  })
 
-  history.value[lastIndex]!.content = marked.parse(history.value[lastIndex]!.content) as string
-  if (container.value && window.innerHeight + window.scrollY >= container.value.scrollHeight - 5)
-    scrollDown()
+  console.log(webResultEmbedding)
+  //Check which is web result is most aligned to the prompt and order in descending order
+  const similaritiyEmeddings = webResultEmbedding.embeddings
+    .map((ebedding) => {
+      const score = cosineSimilarity(ebedding, promptEmbedding.embeddings[0]!)
+      return { ebedding, score }
+    })
+    .sort((a, b) => b.score - a.score)
+
+  const topMatches = similaritiyEmeddings.slice(0, 3) // top 3
+
+  //Create an array of the top three results and format to provide its name and snippet
+  const topTexts = topMatches
+    .map((m, i) => {
+      const page = webResults.data.webPages.value[i]
+      return `Result ${i + 1}: ${page.name}\n${page.url}\n${page.summary}`
+    })
+    .join('\n\n')
+
+  console.log(topTexts)
+
+  return topTexts
+}
+
+function cosineSimilarity(vecA: number[], vecB: number[]) {
+  const dot = vecA.reduce((sum, val, i) => sum + val * vecB[i]!, 0)
+  const magA = Math.sqrt(vecA.reduce((sum, val) => sum + val * val, 0))
+  const magB = Math.sqrt(vecB.reduce((sum, val) => sum + val * val, 0))
+  return dot / (magA * magB)
 }
 
 async function scrollDown() {
@@ -85,12 +178,16 @@ async function scrollDown() {
     })
   }
 }
+
+function stopAllStreams() {
+  ollama.abort()
+}
 </script>
 
 <template>
   <div class="bg-gradient-to-b from-slate-950 to-slate-500 w-[100vw] h-[100vh]">
     <h1
-      v-if="history.length === 0"
+      v-if="shownConversation.length === 0"
       class="fixed left-[50%] top-[40%] -translate-[50%] text-8xl bg-gradient-to-b from-blue-600 to-sky-400 bg-clip-text text-transparent"
     >
       localAI
@@ -100,9 +197,14 @@ async function scrollDown() {
       class="text-white mx-auto max-w-7xl flex flex-col items-stretch overflow-y-auto h-screen"
     >
       <div class="mx-2 mb-15">
-        <div v-for="(response, i) in history" :key="i" class="flex m-2">
+        <div
+          v-for="(response, i) in shownConversation"
+          :key="i"
+          :class="response.role === 'user' ? 'justify-end' : 'justify-start'"
+          class="flex m-2"
+        >
           <div
-            v-if="response.role !== 'assistant'"
+            v-if="response.role !== 'system'"
             class="inline-block bg-gradient-to-b rounded-md text-xl break-words max-w-200 text-white"
             :class="
               response.role === 'user'
@@ -119,20 +221,36 @@ async function scrollDown() {
       </div>
 
       <div
-        class="flex flex-row fixed bottom-0 max-w-200 w-full left-0 right-0 mx-auto mb-1.5 rounded-md bg-gradient-to-b from-blue-600 to-sky-400"
+        class="w-full max-w-200 fixed bottom-0 mb-1.5 mx-auto left-0 right-0 rounded-md bg-gradient-to-b from-blue-600 to-sky-400"
       >
-        <textarea
-          v-model="input"
-          @keyup.enter.exact="newResponse"
-          placeholder="Ask your local AI anyting"
-          autofocus
-          class="bg-slate-600 rounded-l-md p-2 w-full focus:outline-hidden h-10 m-0.5 mr-0 resize-none"
-        >
-        </textarea>
+        <div class="flex flex-row align-middle bg-slate-600 rounded-md m-0.5">
+          <textarea
+            v-model="input"
+            @keyup.enter.exact="newResponse"
+            placeholder="Ask your local AI anyting"
+            autofocus
+            class="rounded-l-md p-2 w-full focus:outline-hidden h-10 mr-0 resize-none"
+          >
+          </textarea>
 
-        <select v-model="AImodel" class="w-/5 bg-slate-800 rounded-r-md p-2 text-center m-0.5 ml-0">
-          <option v-for="(model, i) in availableModels" :key="i">{{ model }}</option>
-        </select>
+          <div
+            v-if="isRunning"
+            @click="stopAllStreams"
+            class="bg-slate-700 rounded-full cursor-pointer h-8 w-11 flex items-center justify-center my-auto mr-1"
+          >
+            <span class="text-white text-3xl font-[Segoe_UI_Symbol] leading-none select-none">
+              &#x23F9;
+            </span>
+          </div>
+
+          <div class="w-/5 bg-slate-800 rounded-r-md p-2 text-center ml-0 flex flex-row">
+            <select v-model="AImodel">
+              <option v-for="(model, i) in availableModels" :key="i">{{ model }}</option>
+            </select>
+
+            <input type="checkbox" v-model="RAG" class="ml-2" />
+          </div>
+        </div>
       </div>
     </div>
   </div>
