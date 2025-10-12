@@ -24,7 +24,7 @@ const input = ref('')
 const fullAIcontext = <{ role: string; content: string }[]>[]
 const shownConversation = ref<{ role: string; content: string }[]>([])
 const container = ref<HTMLElement | null>(null)
-const RAG = ref(false)
+const RAG = ref(true)
 fullAIcontext.push({
   role: 'system',
   content:
@@ -43,7 +43,7 @@ async function newResponse() {
   let context = ''
   if (RAG.value) {
     const topTexts = await webSearch(prompt)
-    context = '\n\n Context: \n' + topTexts
+    context = '\n\n Web search provided: \n' + topTexts
   }
 
   fullAIcontext.push({ role: 'user', content: prompt + context })
@@ -99,6 +99,8 @@ async function webSearch(prompt: string) {
             `,
   })
 
+  console.log('Google query: ', webSearch.response)
+
   //Pull the results from the web
   const webResults = await fetch('/langsearch', {
     method: 'POST',
@@ -107,38 +109,41 @@ async function webSearch(prompt: string) {
   }).then((r) => r.json())
 
   //Create an array with page snippet or name from web results
-  const bestWebResults = webResults.data.webPages.value.map((page: any) => {
-    return {
-      name: page.name,
-      url: page.url,
-      summary: page.summary,
-    }
+  const webSummaries = webResults.data.webPages.value.map((page: any) => {
+    return page.summary
   })
 
-  const json = JSON.stringify(bestWebResults.map((r) => r.summary))
+  console.log('web summaries length', webSummaries.length)
 
   const summarizedResults = await ollama.generate({
     model: AImodel.value,
     prompt: `
             You are an assistant that summarizes web search results for use in semantic embedding and similarity comparison.
 
-            Summarize each item in the given JSON array into one concise, information-rich sentence (no more than 30 words per item).
-            Return ONLY a valid JSON array of summaries, keeping the same order and length as the input.
+            Summarize each item in the given five length array into one concise, information-rich sentence (no more than 30 words per item).
+            Return ONLY a valid five length JSON array of summaries, keeping the same order and length as the input.
             Do not include explanations, extra text, or code fences.
 
             Input array:
-            ${json}`,
+            ${webSummaries}`,
   })
-  /*
-  console.log(summarizedResults)
-  const summaries = JSON.parse(summarizedResults.response) */
+  console.log(summarizedResults.response)
+
+  let jsonResults
+  if (summarizedResults.response.startsWith('```'))
+    jsonResults = JSON.parse(
+      summarizedResults.response.slice(3, summarizedResults.response.length - 4),
+    )
+  else jsonResults = JSON.parse(summarizedResults.response)
+  console.log('Summary of results')
+  console.log()
+
   //Embed the snippets or names of the webpages
   const webResultEmbedding: EmbedResponse = await ollama.embed({
     model: AImodel.value,
-    input: summarizedResults.response,
+    input: jsonResults,
   })
 
-  console.log(webResultEmbedding)
   //Check which is web result is most aligned to the prompt and order in descending order
   const similaritiyEmeddings = webResultEmbedding.embeddings
     .map((ebedding) => {
@@ -149,6 +154,7 @@ async function webSearch(prompt: string) {
 
   const topMatches = similaritiyEmeddings.slice(0, 3) // top 3
 
+  console.log('Length of topMatches:', topMatches.length)
   //Create an array of the top three results and format to provide its name and snippet
   const topTexts = topMatches
     .map((m, i) => {
