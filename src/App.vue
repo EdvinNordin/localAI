@@ -187,35 +187,35 @@ function stopAllStreams() {
         </div>
       </div>
 
-      <div
-        class="w-full max-w-200 fixed bottom-0 mb-1.5 mx-auto left-0 right-0 rounded-md bg-gradient-to-b from-blue-600 to-sky-400"
-      >
-        <div class="flex flex-row align-middle bg-slate-600 rounded-md m-0.5">
-          <textarea
-            v-model="input"
-            @keyup.enter.exact="newResponse"
-            placeholder="Ask your local AI anyting"
-            autofocus
-            class="rounded-l-md p-2 w-full focus:outline-hidden h-10 mr-0 resize-none"
-          >
-          </textarea>
-
-          <div
-            v-if="isRunning"
-            @click="stopAllStreams"
-            class="bg-slate-700 rounded-full cursor-pointer h-8 w-11 flex items-center justify-center my-auto mr-1"
-          >
-            <span class="text-white text-3xl font-[Segoe_UI_Symbol] leading-none select-none">
-              &#x23F9;
-            </span>
-          </div>
-
-          <div class="w-/5 bg-slate-800 rounded-r-md p-2 text-center ml-0 flex flex-row">
-            <select v-model="AImodel">
-              <option v-for="(model, i) in availableModels" :key="i">{{ model }}</option>
-            </select>
-
-            <input type="checkbox" v-model="RAG" class="ml-2" />
+      <div class="w-full max-w-200 fixed bottom-1 mx-auto left-0 right-0">
+        <div class="fixed bottom-13 text-xs ml-1 flex flex-row text-center">
+          <h1>Use Web Search</h1>
+          <input type="checkbox" v-model="RAG" class="ml-2" />
+        </div>
+        <div class="rounded-md bg-gradient-to-b from-blue-600 to-sky-400 p-0.5">
+          <div class="flex flex-row align-middle bg-slate-600 rounded-md">
+            <textarea
+              v-model="input"
+              @keyup.enter.exact="newResponse"
+              placeholder="Ask your local AI anyting"
+              autofocus
+              class="rounded-l-md p-2 w-full focus:outline-hidden h-10 mr-0 resize-none"
+            >
+            </textarea>
+            <div
+              v-if="isRunning"
+              @click="stopAllStreams"
+              class="bg-slate-700 rounded-full cursor-pointer h-8 w-11 flex items-center justify-center my-auto mr-1"
+            >
+              <span class="text-white text-2xl font-[Segoe_UI_Symbol] leading-none select-none">
+                &#x23F9;
+              </span>
+            </div>
+            <div class="w-/5 bg-slate-800 rounded-r-md p-2 pl-3.5 text-center ml-0 flex flex-row">
+              <select v-model="AImodel" required>
+                <option v-for="(model, i) in availableModels" :key="i">{{ model }}</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
