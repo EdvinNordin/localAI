@@ -13,7 +13,7 @@ const LANGSEARCH_KEY = process.env.LANGSEARCH_KEY // store securely in .env
 app.post('/langsearch', async (req, res) => {
   const query = req.body.query
   try {
-    const response = await fetch('https://api.langsearch.com/v1/web-search', {
+    const searchResponse = await fetch('https://api.langsearch.com/v1/web-search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -25,8 +25,33 @@ app.post('/langsearch', async (req, res) => {
       }),
     })
 
-    const data = await response.json()
-    res.json(data)
+    const searchData = await searchResponse.json()
+    const pages = searchData.data?.webPages?.value || []
+    const documents = pages.map((p) => p.summary || p.snippet || p.name || p.url || '')
+
+    const rerankResponse = await fetch('https://api.langsearch.com/v1/rerank', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${LANGSEARCH_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'langsearch-reranker-v1',
+        query,
+        documents,
+      }),
+    })
+
+    const rankData = await rerankResponse.json()
+
+    const combindedData = []
+    rankData.results.forEach((page) => {
+      const object = { summary: documents[page.index], relevance_score: page.relevance_score }
+      combindedData.push(object)
+    })
+
+    //combinedData.sort((a, b) => b.relevance_score - a.relevance_score)
+    res.json(combindedData)
   } catch (err) {
     console.error('LangSearch error:', err)
     res.status(500).json({ error: 'LangSearch proxy failed' })

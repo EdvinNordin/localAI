@@ -2,7 +2,6 @@
 import { ref, nextTick } from 'vue'
 import { Ollama } from 'ollama/browser'
 import { marked } from 'marked'
-import type { EmbedResponse } from 'ollama'
 
 //URL
 const url = window.location.href
@@ -27,8 +26,7 @@ const container = ref<HTMLElement | null>(null)
 const RAG = ref(true)
 fullAIcontext.push({
   role: 'system',
-  content:
-    'You are a helpful AI assistant. Use the provided context provided from online when relevant.',
+  content: `You are a helpful AI assistant and the current date and time is "${new Date()}". Use the provided summary of web searches if they are available and compare it to your own information to see if it more accurate.'`,
 })
 let isRunning = false
 
@@ -43,7 +41,7 @@ async function newResponse() {
   let context = ''
   if (RAG.value) {
     const topTexts = await webSearch(prompt)
-    context = '\n\n Web search provided: \n' + topTexts
+    if (topTexts !== '') context = '\n\n Web search summary and its relevance score: \n' + topTexts
   }
 
   fullAIcontext.push({ role: 'user', content: prompt + context })
@@ -84,16 +82,16 @@ async function newResponse() {
 // WEBSEARCH FUNCTION
 async function webSearch(prompt: string) {
   //First embed the prompt from the user
-  const promptEmbedding: EmbedResponse = await ollama.embed({
+  /*   const promptEmbedding: EmbedResponse = await ollama.embed({
     model: AImodel.value,
     input: prompt,
-  })
+  }) */
 
   //Create a google query
   const webSearch = await ollama.generate({
     model: AImodel.value,
     prompt: `
-            Pretend you're an experienced Google user and convert the following message into a concise Google search query.
+            Pretend you're an experienced Google user and convert the following message into a concise Google search query. The current date and time is "${new Date()}"
             Only return the search string, no explanations or extra text.
             Message: "${prompt}"
             `,
@@ -108,40 +106,35 @@ async function webSearch(prompt: string) {
     body: JSON.stringify({ query: webSearch.response }),
   }).then((r) => r.json())
 
+  const stringy = JSON.stringify(webResults)
+
+  console.log(stringy) /*
   //Create an array with page snippet or name from web results
-  const webSummaries = webResults.data.webPages.value.map((page: any) => {
+  const webSummaries = webResults.map((page: any) => {
     return page.summary
   })
 
   console.log('web summaries length', webSummaries.length)
-
-  const summarizedResults = await ollama.generate({
-    model: AImodel.value,
-    prompt: `
+  const summarizedResults: string[] = []
+  webSummaries.forEach(async (page: string) => {
+    const generated = await ollama.generate({
+      model: AImodel.value,
+      prompt: `
             You are an assistant that summarizes web search results for use in semantic embedding and similarity comparison.
 
-            Summarize each item in the given five length array into one concise, information-rich sentence (no more than 30 words per item).
-            Return ONLY a valid five length JSON array of summaries, keeping the same order and length as the input.
-            Do not include explanations, extra text, or code fences.
+            Summarize the provided web result into one concise, information-rich sentence (no more than 30 words).
+            Return ONLY a valid summary. Do not include explanations, extra text, or code fences. Again, no more than 30 words.
 
-            Input array:
-            ${webSummaries}`,
+            Web result:
+            ${page}`,
+    })
+    summarizedResults.push(generated.response as string)
   })
-  console.log(summarizedResults.response)
-
-  let jsonResults
-  if (summarizedResults.response.startsWith('```'))
-    jsonResults = JSON.parse(
-      summarizedResults.response.slice(3, summarizedResults.response.length - 4),
-    )
-  else jsonResults = JSON.parse(summarizedResults.response)
-  console.log('Summary of results')
-  console.log()
-
-  //Embed the snippets or names of the webpages
+ */
+  /*  //Embed the snippets or names of the webpages
   const webResultEmbedding: EmbedResponse = await ollama.embed({
     model: AImodel.value,
-    input: jsonResults,
+    input: summarizedResults,
   })
 
   //Check which is web result is most aligned to the prompt and order in descending order
@@ -161,11 +154,11 @@ async function webSearch(prompt: string) {
       const page = webResults.data.webPages.value[i]
       return `Result ${i + 1}: ${page.name}\n${page.url}\n${page.summary}`
     })
-    .join('\n\n')
+    .join('\n\n') */
 
-  console.log(topTexts)
+  //console.log(summarizedResults)
 
-  return topTexts
+  return stringy
 }
 
 function cosineSimilarity(vecA: number[], vecB: number[]) {
