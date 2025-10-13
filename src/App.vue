@@ -3,6 +3,8 @@ import { ref, nextTick } from 'vue'
 import { Ollama } from 'ollama/browser'
 import { marked } from 'marked'
 
+const currentDate = new Date().toDateString()
+
 //URL
 const url = window.location.href
 let host = ''
@@ -26,7 +28,21 @@ const container = ref<HTMLElement | null>(null)
 const RAG = ref(true)
 fullAIcontext.push({
   role: 'system',
-  content: `You are a helpful AI assistant and the current date and time is "${new Date()}". Use the provided summary of web searches if they are available and compare it to your own information to see if it more accurate.'`,
+  content: `
+  You are a knowledgeable and helpful AI assistant.
+  Today's date is ${currentDate}.
+
+  You may receive additional web search context, including short summaries of recent web pages and a numeric relevance score.
+  Use this information only when it is clearly relevant and more up-to-date than your own knowledge.
+
+  Guidelines:
+  - Prioritize factual accuracy.
+  - When web context is provided, integrate it naturally into your answer.
+  - Do NOT mention the relevance scores or that a web search was used.
+  - If the web info seems unrelated or low relevance, ignore it.
+  - Always provide clear, confident, and concise answers in natural language.
+  - If you find information in the web summaries that updates or contradicts older facts, prefer the newer information.
+  `,
 })
 let isRunning = false
 
@@ -41,9 +57,15 @@ async function newResponse() {
   let context = ''
   if (RAG.value) {
     const topTexts = await webSearch(prompt)
-    if (topTexts !== '') context = '\n\n Web search summary and its relevance score: \n' + topTexts
+    if (topTexts !== '') {
+      context = `
+      \n\n[BEGIN WEB CONTEXT]
+      The following summaries were retrieved from recent web results:
+      ${topTexts}
+      [END WEB CONTEXT]
+      `
+    }
   }
-
   fullAIcontext.push({ role: 'user', content: prompt + context })
 
   scrollDown()
@@ -81,23 +103,19 @@ async function newResponse() {
 
 // WEBSEARCH FUNCTION
 async function webSearch(prompt: string) {
-  //First embed the prompt from the user
-  /*   const promptEmbedding: EmbedResponse = await ollama.embed({
-    model: AImodel.value,
-    input: prompt,
-  }) */
-
   //Create a google query
   const webSearch = await ollama.generate({
     model: AImodel.value,
     prompt: `
-            Pretend you're an experienced Google user and convert the following message into a concise Google search query. The current date and time is "${new Date()}"
-            Only return the search string, no explanations or extra text.
-            Message: "${prompt}"
-            `,
-  })
+          You are a skilled search assistant.
+          Rewrite the following user message as a concise Google search query.
+          Keep it short, use natural search phrasing, and include relevant keywords.
+          Only return the search query text itself — no explanations or formatting.
 
-  console.log('Google query: ', webSearch.response)
+          User message: "${prompt}"
+          Current date: ${currentDate}
+          `,
+  })
 
   //Pull the results from the web
   const webResults = await fetch('/langsearch', {
@@ -106,67 +124,17 @@ async function webSearch(prompt: string) {
     body: JSON.stringify({ query: webSearch.response }),
   }).then((r) => r.json())
 
-  const stringy = JSON.stringify(webResults)
+  const resultString = JSON.stringify(webResults)
 
-  console.log(stringy) /*
-  //Create an array with page snippet or name from web results
-  const webSummaries = webResults.map((page: any) => {
-    return page.summary
-  })
-
-  console.log('web summaries length', webSummaries.length)
-  const summarizedResults: string[] = []
-  webSummaries.forEach(async (page: string) => {
-    const generated = await ollama.generate({
-      model: AImodel.value,
-      prompt: `
-            You are an assistant that summarizes web search results for use in semantic embedding and similarity comparison.
-
-            Summarize the provided web result into one concise, information-rich sentence (no more than 30 words).
-            Return ONLY a valid summary. Do not include explanations, extra text, or code fences. Again, no more than 30 words.
-
-            Web result:
-            ${page}`,
-    })
-    summarizedResults.push(generated.response as string)
-  })
- */
-  /*  //Embed the snippets or names of the webpages
-  const webResultEmbedding: EmbedResponse = await ollama.embed({
-    model: AImodel.value,
-    input: summarizedResults,
-  })
-
-  //Check which is web result is most aligned to the prompt and order in descending order
-  const similaritiyEmeddings = webResultEmbedding.embeddings
-    .map((ebedding) => {
-      const score = cosineSimilarity(ebedding, promptEmbedding.embeddings[0]!)
-      return { ebedding, score }
-    })
-    .sort((a, b) => b.score - a.score)
-
-  const topMatches = similaritiyEmeddings.slice(0, 3) // top 3
-
-  console.log('Length of topMatches:', topMatches.length)
-  //Create an array of the top three results and format to provide its name and snippet
-  const topTexts = topMatches
-    .map((m, i) => {
-      const page = webResults.data.webPages.value[i]
-      return `Result ${i + 1}: ${page.name}\n${page.url}\n${page.summary}`
-    })
-    .join('\n\n') */
-
-  //console.log(summarizedResults)
-
-  return stringy
+  return resultString
 }
 
-function cosineSimilarity(vecA: number[], vecB: number[]) {
+/* function cosineSimilarity(vecA: number[], vecB: number[]) {
   const dot = vecA.reduce((sum, val, i) => sum + val * vecB[i]!, 0)
   const magA = Math.sqrt(vecA.reduce((sum, val) => sum + val * val, 0))
   const magB = Math.sqrt(vecB.reduce((sum, val) => sum + val * val, 0))
   return dot / (magA * magB)
-}
+} */
 
 async function scrollDown() {
   await nextTick()
