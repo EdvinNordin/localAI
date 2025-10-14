@@ -13,7 +13,7 @@ COPY . .
 RUN npm run build
 
 # Expose the backend port
-EXPOSE 3001
+EXPOSE 3000
 
 # Start the Express server
 CMD ["node", "server.js"]

@@ -22,7 +22,7 @@ app.use(
   '/ollama',
   proxy('http://localhost:11434', {
     proxyReqPathResolver: (req) => req.url.replace(/^\/ollama/, ''), // remove prefix
-    proxyReqOptDecorator: function (proxyReqOpts, srcReq) {
+    proxyReqOptDecorator: function (proxyReqOpts) {
       proxyReqOpts.headers = { Host: '127.0.0.1:11434' }
       return proxyReqOpts
     },
