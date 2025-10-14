@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
 dotenv.config()
 import express from 'express'
+import proxy from 'express-http-proxy'
 import path from 'path'
 
 import fetch from 'node-fetch'
@@ -16,6 +17,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 app.use(express.static(path.join(__dirname, 'dist')))
 
 const LANGSEARCH_KEY = process.env.LANGSEARCH_KEY // store securely in .env
+
+app.use(
+  '/ollama',
+  proxy('http://localhost:11434', {
+    proxyReqPathResolver: (req) => req.url.replace(/^\/ollama/, ''), // remove prefix
+    proxyReqOptDecorator: function (proxyReqOpts, srcReq) {
+      proxyReqOpts.headers = { Host: '127.0.0.1:11434' }
+      return proxyReqOpts
+    },
+  }),
+)
 
 app.post('/langsearch', async (req, res) => {
   const query = req.body.query
@@ -65,4 +77,4 @@ app.post('/langsearch', async (req, res) => {
   }
 })
 
-app.listen(3001, () => console.log('Proxy running at http://localhost:3001'))
+app.listen(3000, '0.0.0.0') // () => console.log('Proxy running at http://localhost:3001'))

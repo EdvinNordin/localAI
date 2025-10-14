@@ -7,10 +7,13 @@ const currentDate = new Date().toDateString()
 
 //URL
 const url = window.location.href
-let host = ''
-if (url.startsWith('http://localhost')) host = 'http://192.168.68.105:5173/ollama'
+/*let host = ''
+/*if (url.startsWith('http://localhost')) host = 'http://192.168.68.105:5173/ollama'
 else host = url + 'ollama'
+*/
+const host = window.location.origin + '/ollama'
 
+//const host = 'http://localhost:11434' 
 //OLLAMA SETTINGS
 const ollama = new Ollama({ host: host }) //url + 'ollama'
 const AImodel = ref()
