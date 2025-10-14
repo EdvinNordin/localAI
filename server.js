@@ -18,9 +18,13 @@ app.use(express.static(path.join(__dirname, 'dist')))
 
 const LANGSEARCH_KEY = process.env.LANGSEARCH_KEY // store securely in .env
 
+/*
+let proxyURL = window.location.origin
+proxyURL = proxyURL.replace(':3000', ':11434')*/
+
 app.use(
   '/ollama',
-  proxy('http://localhost:11434', {
+  proxy('http://host.docker.internal:11434', {
     proxyReqPathResolver: (req) => req.url.replace(/^\/ollama/, ''), // remove prefix
     proxyReqOptDecorator: function (proxyReqOpts) {
       proxyReqOpts.headers = { Host: '127.0.0.1:11434' }
