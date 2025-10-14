@@ -1,12 +1,19 @@
 import dotenv from 'dotenv'
 dotenv.config()
 import express from 'express'
+import path from 'path'
+
 import fetch from 'node-fetch'
 import cors from 'cors'
 
+import { fileURLToPath } from 'url'
 const app = express()
 app.use(express.json())
 app.use(cors())
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+app.use(express.static(path.join(__dirname, 'dist')))
 
 const LANGSEARCH_KEY = process.env.LANGSEARCH_KEY // store securely in .env
 
