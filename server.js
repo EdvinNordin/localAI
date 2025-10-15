@@ -24,10 +24,11 @@ proxyURL = proxyURL.replace(':3000', ':11434')*/
 
 app.use(
   '/ollama',
-  proxy('http://host.docker.internal:11434', {
-    proxyReqPathResolver: (req) => req.url.replace(/^\/ollama/, ''), // remove prefix
-    proxyReqOptDecorator: function (proxyReqOpts) {
-      proxyReqOpts.headers = { Host: '127.0.0.1:11434' }
+  proxy('http://localhost:11434', {
+    //'http://host.docker.internal:11434'
+    proxyReqPathResolver: (req) => req.url.replace(/^\/ollama/, ''),
+    proxyReqOptDecorator: (proxyReqOpts) => {
+      proxyReqOpts.headers.Host = '127.0.0.1:11434'
       return proxyReqOpts
     },
   }),

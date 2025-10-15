@@ -154,7 +154,7 @@ function stopAllStreams() {
       v-if="shownConversation.length === 0"
       class="fixed left-[50%] top-[40%] -translate-[50%] text-8xl bg-gradient-to-b from-blue-600 to-sky-400 bg-clip-text text-transparent"
     >
-      localAI
+      localLLM
     </h1>
     <div
       ref="container"
