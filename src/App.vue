@@ -194,7 +194,7 @@ function stopAllStreams() {
             <textarea
               v-model="input"
               @keyup.enter.exact="newResponse"
-              placeholder="Ask your local AI anyting"
+              placeholder="Ask your local AI anything"
               autofocus
               class="rounded-l-md p-2 w-full focus:outline-hidden h-10 mr-0 resize-none"
             >
