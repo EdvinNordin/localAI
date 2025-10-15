@@ -200,17 +200,17 @@ function stopAllStreams() {
             >
             </textarea>
             <div
-              v-if="isRunning"
-              @click="stopAllStreams"
-              class="bg-slate-700 rounded-full cursor-pointer h-8 w-11 flex items-center justify-center my-auto mr-1"
+              class=" rounded-full  h-8 w-11 flex items-center justify-center my-auto mr-1"
             >
-              <span class="text-white text-2xl font-[Segoe_UI_Symbol] leading-none select-none">
+              <span v-if="isRunning"
+              @click="stopAllStreams"
+              class="text-white cursor-pointer text-2xl font-[Segoe_UI_Symbol] leading-none select-none">
                 &#x23F9;
               </span>
             </div>
             <div class="w-/5 bg-slate-800 rounded-r-md p-2 pl-3.5 text-center ml-0 flex flex-row">
               <select v-model="AImodel" required>
-                <option v-for="(model, i) in availableModels" :key="i">{{ model }}</option>
+                <option v-for="(model, i) in availableModels" :key="i" class="bg-slate-800 text-white">{{ model }}</option>
               </select>
             </div>
           </div>
