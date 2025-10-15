@@ -3,14 +3,14 @@
 This template should help get you started developing with Vue 3 in Vite.
 
 
-
-## Base
+## Example images
+### Base
 ![base.png](https://github.com/EdvinNordin/localLLM/blob/main/public/base.png)
 
-## Bar
+### Bar
 ![bar.png](https://github.com/EdvinNordin/localLLM/blob/main/public/bar.png)
 
-## Example
+### Example
 ![example.png](https://github.com/EdvinNordin/localLLM/blob/main/public/example.png)
 
 
